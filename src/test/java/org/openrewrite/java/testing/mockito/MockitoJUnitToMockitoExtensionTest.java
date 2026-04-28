@@ -16,6 +16,7 @@
 package org.openrewrite.java.testing.mockito;
 
 import org.junit.jupiter.api.Test;
+import org.openrewrite.DocumentExample;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Issue;
 import org.openrewrite.java.JavaParser;
@@ -34,6 +35,69 @@ class MockitoJUnitToMockitoExtensionTest implements RewriteTest {
             .classpathFromResources(new InMemoryExecutionContext(),
               "mockito-core-3.12", "mockito-junit-jupiter-3.12", "junit-4", "hamcrest-3", "junit-jupiter-api-5"))
           .recipe(new MockitoJUnitToMockitoExtension());
+    }
+
+    @DocumentExample
+    @Test
+    void existingExtendWithRemovesSilentMockitoRuleAndAddsMockitoSettingsLenient() {
+        //language=java
+        rewriteRun(
+          java(
+            """
+              import org.junit.jupiter.api.extension.ExtendWith;
+              import org.junit.Rule;
+              import org.junit.Test;
+              import org.mockito.Mock;
+              import org.mockito.junit.jupiter.MockitoExtension;
+              import org.mockito.junit.MockitoJUnit;
+              import org.mockito.junit.MockitoRule;
+
+              import java.util.List;
+
+              import static org.mockito.Mockito.when;
+
+              @ExtendWith(MockitoExtension.class)
+              public class MyTest {
+
+                  @Rule
+                  public MockitoRule rule = MockitoJUnit.rule().silent();
+
+                  @Mock
+                  private List<String> mockList;
+
+                  @Test
+                  public void testing() {
+                      when(mockList.add("one")).thenReturn(true);
+                  }
+              }
+              """,
+            """
+              import org.junit.jupiter.api.extension.ExtendWith;
+              import org.junit.Test;
+              import org.mockito.Mock;
+              import org.mockito.junit.jupiter.MockitoExtension;
+              import org.mockito.junit.jupiter.MockitoSettings;
+              import org.mockito.quality.Strictness;
+
+              import java.util.List;
+
+              import static org.mockito.Mockito.when;
+
+              @ExtendWith(MockitoExtension.class)
+              @MockitoSettings(strictness = Strictness.LENIENT)
+              public class MyTest {
+
+                  @Mock
+                  private List<String> mockList;
+
+                  @Test
+                  public void testing() {
+                      when(mockList.add("one")).thenReturn(true);
+                  }
+              }
+              """
+          )
+        );
     }
 
     @Issue("https://github.com/openrewrite/rewrite-testing-frameworks/issues/86")
@@ -491,68 +555,6 @@ class MockitoJUnitToMockitoExtensionTest implements RewriteTest {
                   @Test
                   public void exampleTest() {
                       verify(list).add(100);
-                  }
-              }
-              """
-          )
-        );
-    }
-
-    @Test
-    void existingExtendWithRemovesSilentMockitoRuleAndAddsMockitoSettingsLenient() {
-        //language=java
-        rewriteRun(
-          java(
-            """
-              import org.junit.jupiter.api.extension.ExtendWith;
-              import org.junit.Rule;
-              import org.junit.Test;
-              import org.mockito.Mock;
-              import org.mockito.junit.jupiter.MockitoExtension;
-              import org.mockito.junit.MockitoJUnit;
-              import org.mockito.junit.MockitoRule;
-
-              import java.util.List;
-
-              import static org.mockito.Mockito.when;
-
-              @ExtendWith(MockitoExtension.class)
-              public class MyTest {
-
-                  @Rule
-                  public MockitoRule rule = MockitoJUnit.rule().silent();
-
-                  @Mock
-                  private List<String> mockList;
-
-                  @Test
-                  public void testing() {
-                      when(mockList.add("one")).thenReturn(true);
-                  }
-              }
-              """,
-            """
-              import org.junit.jupiter.api.extension.ExtendWith;
-              import org.junit.Test;
-              import org.mockito.Mock;
-              import org.mockito.junit.jupiter.MockitoExtension;
-              import org.mockito.junit.jupiter.MockitoSettings;
-              import org.mockito.quality.Strictness;
-
-              import java.util.List;
-
-              import static org.mockito.Mockito.when;
-
-              @ExtendWith(MockitoExtension.class)
-              @MockitoSettings(strictness = Strictness.LENIENT)
-              public class MyTest {
-
-                  @Mock
-                  private List<String> mockList;
-
-                  @Test
-                  public void testing() {
-                      when(mockList.add("one")).thenReturn(true);
                   }
               }
               """

@@ -27,8 +27,6 @@ import org.openrewrite.java.search.FindAnnotations;
 import org.openrewrite.java.search.UsesType;
 import org.openrewrite.java.tree.J;
 
-import java.util.Comparator;
-
 import static java.util.Comparator.comparing;
 
 public class AddMockitoSettingsWithWarnStrictness extends Recipe {

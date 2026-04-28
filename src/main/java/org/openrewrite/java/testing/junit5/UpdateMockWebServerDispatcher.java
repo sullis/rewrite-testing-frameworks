@@ -90,15 +90,15 @@ public class UpdateMockWebServerDispatcher extends Recipe {
                 // don't gate on the expression's current type.
                 m = (J.MethodDeclaration) new JavaIsoVisitor<ExecutionContext>() {
                     @Override
-                    public J.Return visitReturn(J.Return aReturn, ExecutionContext c) {
-                        J.Return r = super.visitReturn(aReturn, c);
+                    public J.Return visitReturn(J.Return aReturn, ExecutionContext ctx) {
+                        J.Return r = super.visitReturn(aReturn, ctx);
                         Expression expr = r.getExpression();
                         if (expr == null) {
                             return r;
                         }
                         J.MethodInvocation wrapped = JavaTemplate
                                 .builder("#{any(" + OLD_MOCK_RESPONSE_FQN + ")}.build()")
-                                .javaParser(JavaParser.fromJavaVersion().classpathFromResources(c, "mockwebserver-4.10"))
+                                .javaParser(JavaParser.fromJavaVersion().classpathFromResources(ctx, "mockwebserver-4.10"))
                                 .build()
                                 .apply(new Cursor(getCursor(), expr), expr.getCoordinates().replace(), expr);
                         wrapped = wrapped.withMethodType(buildMethodType)
