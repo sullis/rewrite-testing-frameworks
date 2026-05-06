@@ -22,8 +22,11 @@ import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.openrewrite.gradle.Assertions.buildGradle;
+import static org.openrewrite.gradle.toolingapi.Assertions.withToolingApi;
 import static org.openrewrite.java.Assertions.java;
 import static org.openrewrite.java.Assertions.javaVersion;
+import static org.openrewrite.java.Assertions.srcTestJava;
 import static org.openrewrite.maven.Assertions.pomXml;
 
 class JUnit5to6MigrationTest implements RewriteTest {
@@ -79,6 +82,118 @@ class JUnit5to6MigrationTest implements RewriteTest {
               .as("junit-jupiter.version property should be upgraded to 6.x")
               .containsPattern("<junit-jupiter\\.version>6\\.\\d+\\.\\d+</junit-jupiter\\.version>")
               .actual())
+          )
+        );
+    }
+
+    @Test
+    void removeJunitVintageEngineFromMavenBuild() {
+        rewriteRun(
+          //language=java
+          java(
+            """
+              import org.junit.jupiter.api.Test;
+              class FooTest {
+                  @Test
+                  void bar() {
+                  }
+              }
+              """,
+            spec -> spec.markers(javaVersion(17))
+          ),
+          //language=xml
+          pomXml(
+            """
+              <project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>com.example</groupId>
+                  <artifactId>example</artifactId>
+                  <version>1.0.0</version>
+                  <dependencyManagement>
+                      <dependencies>
+                          <dependency>
+                              <groupId>org.junit.vintage</groupId>
+                              <artifactId>junit-vintage-engine</artifactId>
+                              <version>5.14.4</version>
+                              <scope>test</scope>
+                          </dependency>
+                      </dependencies>
+                  </dependencyManagement>
+                  <dependencies>
+                          <dependency>
+                              <groupId>org.junit.vintage</groupId>
+                              <artifactId>junit-vintage-engine</artifactId>
+                              <version>5.14.4</version>
+                              <scope>test</scope>
+                          </dependency>
+                  </dependencies>
+              </project>
+              """,
+            spec -> spec.after(actual -> assertThat(actual)
+              .as("junit vintage should be removed")
+              .doesNotContain("vintage")
+              .actual())
+          )
+        );
+    }
+
+    @Test
+    void removeJunitVintageEngineFromGradleBuild() {
+        rewriteRun(
+          spec -> spec
+            .beforeRecipe(withToolingApi())
+            .parser(JavaParser.fromJavaVersion()
+              .classpathFromResources(new InMemoryExecutionContext(), "junit-4", "junit-jupiter-api")),
+          //language=groovy
+          buildGradle(
+            """
+              plugins {
+                  id 'java-library'
+              }
+              repositories {
+                  mavenCentral()
+              }
+              dependencies {
+                  testImplementation 'junit:junit:4.12'
+                  testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:5.7.2'
+              }
+              """,
+            """
+              plugins {
+                  id 'java-library'
+              }
+              repositories {
+                  mavenCentral()
+              }
+              dependencies {
+              }
+              tasks.withType(Test).configureEach {
+                  useJUnitPlatform()
+              }
+              """
+          ),
+          srcTestJava(
+            java(
+              """
+                import org.junit.Test;
+
+                public class MyTest {
+                    @Test
+                    public void hello() {
+                    }
+                }
+                """,
+              """
+                import org.junit.jupiter.api.Test;
+
+                public class MyTest {
+                    @Test
+                    public void hello() {
+                    }
+                }
+                """,
+              spec -> spec.markers(javaVersion(17))
+            )
           )
         );
     }
