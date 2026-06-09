@@ -22,6 +22,7 @@ import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.openrewrite.gradle.Assertions.buildGradle;
 import static org.openrewrite.java.Assertions.java;
 import static org.openrewrite.java.Assertions.javaVersion;
 import static org.openrewrite.maven.Assertions.pomXml;
@@ -78,6 +79,38 @@ class JUnit5to6MigrationTest implements RewriteTest {
             spec -> spec.after(actual -> assertThat(actual)
               .as("junit-jupiter.version property should be upgraded to 6.x")
               .containsPattern("<junit-jupiter\\.version>6\\.\\d+\\.\\d+</junit-jupiter\\.version>")
+              .actual())
+          )
+        );
+    }
+
+    @Test
+    void upgradesJunitBomInBuildGradle() {
+        rewriteRun(
+          //language=java
+          java(
+            """
+              import org.junit.jupiter.api.Test;
+              class FooTest {
+                  @Test
+                  void bar() {
+                  }
+              }
+              """,
+            spec -> spec.markers(javaVersion(17))
+          ),
+          //language=xml
+          buildGradle(
+            """
+              id("java")
+
+              dependencies {
+                  testImplementation(platform("org.junit:junit-bom:5.3.0"))
+              }
+              """,
+            spec -> spec.after(actual -> assertThat(actual)
+              .as("junit-bom should be upgraded to 6.x")
+              .containsPattern("junit-bom:6\\.\\d+\\.\\d+\"")
               .actual())
           )
         );
